@@ -11,40 +11,38 @@
 </head>
 <body>
 <div>
-    <div class="container pb-5">
+    <div class="p-5">
         <div class="row">
-            <div class="col-12">
+            <div class="col-6">
+                <canvas id="prices"></canvas>
+            </div>
+            <div class="col-6">
                 <canvas id="monthlyAmountChart"></canvas>
             </div>
-            <div class="col-12">
+            <div class="col-6">
                 <canvas id="profitChart"></canvas>
             </div>
-            <div class="col-12">
-                <canvas id="profitsChart"></canvas>
-            </div>
-            <div class="col-12">
+            <div class="col-6">
                 <canvas id="cash"></canvas>
             </div>
         </div>
+        <hr>
 
-        <div>
-            Total investment:
-            <b id="total-investment"></b>
-        </div>
-
-        <div>
-            Current stock value:
-            <b id="shares-value"></b>
-        </div>
-
-        <div>
-            Current cash:
-            <b id="current-cash"></b>
-        </div>
-
-        <div>
-            Profit percent:
-            <b id="profit-percent"></b>%
+        <div class="row">
+            <div class="col-md-6 col-lg-3">
+                <table class="table">
+                    <tbody>
+                    <tr>
+                        <th>Current stock value</th>
+                        <td id="shares-value"></td>
+                    </tr>
+                    <tr>
+                        <th>Current cash</th>
+                        <td id="current-cash"></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
@@ -53,11 +51,11 @@
   fetch('/prices.json')
     .then((response) => response.json())
     .then((pricesByMonth) => {
+      const startDate = '2007-01-01';
       const monthlyCashIn = 10000000;
-      let totalInvested = 0;
       let availableCash = 0;
       let nbShares = 0;
-      let initialSharesValue = 0;
+      let originalShareValue = 0;
       let currentSharesValue = 0;
       let highestSharesValue = 0;
 
@@ -68,40 +66,47 @@
       const initialValues = [];
       const currentValues = [];
       const cash = [];
+      const prices = [];
 
       pricesByMonth.forEach(({date, price: thisMonthPrice}) => {
-        totalInvested += monthlyCashIn;
-        availableCash += monthlyCashIn;
+        if (date < startDate) {
+          return;
+        }
+
         currentSharesValue = nbShares * thisMonthPrice;
         let amountToBuyThisMonth = monthlyCashIn;
 
-        const diffPercent = currentSharesValue / initialSharesValue - 1;
-        if (diffPercent > 0) {
-          amountToBuyThisMonth = monthlyCashIn - (diffPercent * monthlyCashIn);
-        } else if (diffPercent < 0) {
-          amountToBuyThisMonth = monthlyCashIn - (diffPercent * monthlyCashIn * 2);
+        if (currentSharesValue > originalShareValue) {
+          amountToBuyThisMonth = (originalShareValue - currentSharesValue) / 10;
+        }
+
+        if (currentSharesValue < originalShareValue) {
+          const diffPercent = originalShareValue/currentSharesValue - 1;
+          amountToBuyThisMonth = monthlyCashIn + (diffPercent * monthlyCashIn) *2;
+        }
+
+        if (amountToBuyThisMonth > 0) {
+          originalShareValue += amountToBuyThisMonth;
         }
 
         availableCash -= amountToBuyThisMonth;
         nbShares += amountToBuyThisMonth / thisMonthPrice;
-        initialSharesValue += amountToBuyThisMonth;
         currentSharesValue = nbShares * thisMonthPrice;
 
         labels.push(date + ' - ' + thisMonthPrice);
         monthlyInvests.push(amountToBuyThisMonth);
-        profits.push((currentSharesValue) / initialSharesValue * 100 - 100);
+        profits.push((currentSharesValue) / originalShareValue * 100 - 100);
 
         highestSharesValue = Math.max(highestSharesValue, currentSharesValue);
         highestValues.push(highestSharesValue);
 
-        initialValues.push(initialSharesValue);
+        initialValues.push(originalShareValue);
         currentValues.push(currentSharesValue);
         cash.push(availableCash);
+        prices.push(thisMonthPrice);
       });
 
-      document.getElementById('total-investment').innerHTML = format(initialSharesValue);
       document.getElementById('shares-value').innerHTML = format(currentSharesValue);
-      document.getElementById('profit-percent').innerHTML = format((currentSharesValue + availableCash) / initialSharesValue * 100 - 100);
       document.getElementById('current-cash').innerHTML = format(availableCash);
 
       new Chart(document.getElementById('profitChart'), {
@@ -117,11 +122,6 @@
             {
               label: 'currentValues',
               data: currentValues,
-              borderWidth: 1
-            },
-            {
-              label: 'highestValues',
-              data: highestValues,
               borderWidth: 1
             },
           ]
@@ -142,20 +142,6 @@
         },
       });
 
-      new Chart(document.getElementById('profitsChart'), {
-        type: 'line',
-        data: {
-          labels: labels,
-          datasets: [
-            {
-              label: 'profit %',
-              data: profits,
-              borderWidth: 1
-            },
-          ]
-        },
-      });
-
       new Chart(document.getElementById('cash'), {
         type: 'line',
         data: {
@@ -164,6 +150,20 @@
             {
               label: 'cash %',
               data: cash,
+              borderWidth: 1
+            },
+          ]
+        },
+      });
+
+      new Chart(document.getElementById('prices'), {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: 'prices',
+              data: prices,
               borderWidth: 1
             },
           ]
