@@ -25,6 +25,9 @@
             <div class="col-6">
                 <canvas id="cash"></canvas>
             </div>
+            <div class="col-6">
+                <canvas id="profits"></canvas>
+            </div>
         </div>
         <hr>
 
@@ -77,13 +80,31 @@
         let amountToBuyThisMonth = monthlyCashIn;
 
         if (currentSharesValue > originalShareValue) {
-          amountToBuyThisMonth = (originalShareValue - currentSharesValue) / 10;
+          amountToBuyThisMonth = (originalShareValue - currentSharesValue) / 5;
         }
 
         if (currentSharesValue < originalShareValue) {
           const diffPercent = originalShareValue/currentSharesValue - 1;
-          amountToBuyThisMonth = monthlyCashIn + (diffPercent * monthlyCashIn) *2;
+          let multiplier = 1;
+
+          if (diffPercent >= 0.60) {
+            multiplier = 5;
+          } else if (diffPercent >= 0.50) {
+            multiplier = 4;
+          } else if (diffPercent >= 0.40) {
+            multiplier = 3;
+          } else if (diffPercent >= 0.30) {
+            multiplier = 2.5;
+          } else if (diffPercent >= 0.20) {
+            multiplier = 2;
+          } else if (diffPercent >= 0.10) {
+            multiplier = 1.5;
+          }
+
+          amountToBuyThisMonth = monthlyCashIn + diffPercent * monthlyCashIn * multiplier;
         }
+
+        profits.push(currentSharesValue/originalShareValue * 100 - 100);
 
         if (amountToBuyThisMonth > 0) {
           originalShareValue += amountToBuyThisMonth;
@@ -115,7 +136,7 @@
           labels: labels,
           datasets: [
             {
-              label: 'initialValues',
+              label: 'invested',
               data: initialValues,
               borderWidth: 1
             },
@@ -164,6 +185,20 @@
             {
               label: 'prices',
               data: prices,
+              borderWidth: 1
+            },
+          ]
+        },
+      });
+
+      new Chart(document.getElementById('profits'), {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: 'profits',
+              data: profits,
               borderWidth: 1
             },
           ]
