@@ -13,19 +13,19 @@
 <div>
     <div class="p-5">
         <div class="row">
-            <div class="col-6">
+            <div class="col-12">
                 <canvas id="prices"></canvas>
             </div>
-            <div class="col-6">
+            <div class="col-12">
                 <canvas id="monthlyAmountChart"></canvas>
             </div>
-            <div class="col-6">
+            <div class="col-12">
                 <canvas id="profitChart"></canvas>
             </div>
-            <div class="col-6">
+            <div class="col-12">
                 <canvas id="cash"></canvas>
             </div>
-            <div class="col-6">
+            <div class="col-12">
                 <canvas id="profits"></canvas>
             </div>
         </div>
@@ -36,12 +36,24 @@
                 <table class="table">
                     <tbody>
                     <tr>
+                        <th>Capital</th>
+                        <td id="capital"></td>
+                    </tr>
+                    <tr>
                         <th>Current stock value</th>
                         <td id="shares-value"></td>
                     </tr>
                     <tr>
                         <th>Current cash</th>
                         <td id="current-cash"></td>
+                    </tr>
+                    <tr>
+                        <th>Profit</th>
+                        <td id="profit"></td>
+                    </tr>
+                    <tr>
+                        <th>Profit %</th>
+                        <td id="profit-percent"></td>
                     </tr>
                     </tbody>
                 </table>
@@ -54,8 +66,9 @@
   fetch('/prices.json')
     .then((response) => response.json())
     .then((pricesByMonth) => {
-      const startDate = '2007-01-01';
-      const monthlyCashIn = 10000000;
+      const startDate = '2006-01-01';
+      let monthlyInvestment = 10000000;
+      let capital = 0;
       let availableCash = 0;
       let nbShares = 0;
       let originalShareValue = 0;
@@ -63,51 +76,84 @@
       let highestSharesValue = 0;
 
       const labels = [];
+      const baseMonthlyInvests = [];
       const monthlyInvests = [];
       const profits = [];
       const highestValues = [];
       const initialValues = [];
       const currentValues = [];
+      const capitals = [];
       const cash = [];
       const prices = [];
 
-      pricesByMonth.forEach(({date, price: thisMonthPrice}) => {
+      pricesByMonth.forEach(({date, price: thisMonthPrice}, index) => {
         if (date < startDate) {
           return;
         }
 
+        if ((index + 1) % 12 === 0) {
+          monthlyInvestment *= 1.1;
+        }
+
         currentSharesValue = nbShares * thisMonthPrice;
-        let amountToBuyThisMonth = monthlyCashIn;
+
+        profits.push((currentSharesValue) / originalShareValue * 100 - 100);
+        initialValues.push(originalShareValue);
+        currentValues.push(currentSharesValue);
+
+        let amountToBuyThisMonth = monthlyInvestment;
 
         if (currentSharesValue > originalShareValue) {
-          amountToBuyThisMonth = (originalShareValue - currentSharesValue) / 5;
+          const diffPercent = currentSharesValue/originalShareValue - 1;
+          let divider = 5;
+
+          if (diffPercent >= 1) {
+            divider = 1;
+          } else if (divider >= 0.8) {
+            divider = 1.5;
+          } else if (divider >= 0.6) {
+            divider = 2;
+          } else if (divider >= 0.5) {
+            divider = 2.5;
+          } else if (divider >= 0.4) {
+            divider = 3;
+          } else if (divider >= 0.3) {
+            divider = 3.5;
+          } else if (divider >= 0.2) {
+            divider = 4;
+          }
+
+          amountToBuyThisMonth = (originalShareValue - currentSharesValue) / divider + monthlyInvestment;
         }
 
         if (currentSharesValue < originalShareValue) {
           const diffPercent = originalShareValue/currentSharesValue - 1;
-          let multiplier = 1;
+          let multiplier = 2;
 
           if (diffPercent >= 0.60) {
-            multiplier = 5;
+            multiplier = 8;
           } else if (diffPercent >= 0.50) {
-            multiplier = 4;
+            multiplier = 7;
           } else if (diffPercent >= 0.40) {
-            multiplier = 3;
+            multiplier = 6;
           } else if (diffPercent >= 0.30) {
-            multiplier = 2.5;
+            multiplier = 5;
           } else if (diffPercent >= 0.20) {
-            multiplier = 2;
+            multiplier = 4;
           } else if (diffPercent >= 0.10) {
-            multiplier = 1.5;
+            multiplier = 3;
           }
 
-          amountToBuyThisMonth = monthlyCashIn + diffPercent * monthlyCashIn * multiplier;
+          amountToBuyThisMonth = monthlyInvestment + diffPercent * monthlyInvestment * multiplier;
         }
-
-        profits.push(currentSharesValue/originalShareValue * 100 - 100);
 
         if (amountToBuyThisMonth > 0) {
           originalShareValue += amountToBuyThisMonth;
+        }
+
+        if (amountToBuyThisMonth > availableCash) {
+          capital += amountToBuyThisMonth - availableCash;
+          availableCash += amountToBuyThisMonth - availableCash;
         }
 
         availableCash -= amountToBuyThisMonth;
@@ -116,19 +162,21 @@
 
         labels.push(date + ' - ' + thisMonthPrice);
         monthlyInvests.push(amountToBuyThisMonth);
-        profits.push((currentSharesValue) / originalShareValue * 100 - 100);
 
         highestSharesValue = Math.max(highestSharesValue, currentSharesValue);
         highestValues.push(highestSharesValue);
 
-        initialValues.push(originalShareValue);
-        currentValues.push(currentSharesValue);
+        capitals.push(capital);
+        baseMonthlyInvests.push(monthlyInvestment);
         cash.push(availableCash);
         prices.push(thisMonthPrice);
       });
 
+      document.getElementById('capital').innerHTML = format(capital);
       document.getElementById('shares-value').innerHTML = format(currentSharesValue);
       document.getElementById('current-cash').innerHTML = format(availableCash);
+      document.getElementById('profit').innerHTML = format((currentSharesValue + availableCash) - capital);
+      document.getElementById('profit-percent').innerHTML = format((currentSharesValue + availableCash) / capital * 100 - 100) + '%';
 
       new Chart(document.getElementById('profitChart'), {
         type: 'line',
@@ -136,13 +184,23 @@
           labels: labels,
           datasets: [
             {
-              label: 'invested',
+              label: 'originalShareValue',
               data: initialValues,
               borderWidth: 1
             },
             {
               label: 'currentValues',
               data: currentValues,
+              borderWidth: 1
+            },
+            {
+              label: 'cash',
+              data: cash,
+              borderWidth: 1
+            },
+            {
+              label: 'capitals',
+              data: capitals,
               borderWidth: 1
             },
           ]
@@ -159,23 +217,15 @@
               data: monthlyInvests,
               borderWidth: 1
             },
-          ]
-        },
-      });
-
-      new Chart(document.getElementById('cash'), {
-        type: 'line',
-        data: {
-          labels: labels,
-          datasets: [
             {
-              label: 'cash %',
-              data: cash,
+              label: 'baseMonthlyInvests',
+              data: baseMonthlyInvests,
               borderWidth: 1
             },
           ]
         },
       });
+
 
       new Chart(document.getElementById('prices'), {
         type: 'line',
@@ -185,20 +235,6 @@
             {
               label: 'prices',
               data: prices,
-              borderWidth: 1
-            },
-          ]
-        },
-      });
-
-      new Chart(document.getElementById('profits'), {
-        type: 'line',
-        data: {
-          labels: labels,
-          datasets: [
-            {
-              label: 'profits',
-              data: profits,
               borderWidth: 1
             },
           ]
