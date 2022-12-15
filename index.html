@@ -13,20 +13,11 @@
 <div>
     <div class="p-5">
         <div class="row">
-            <div class="col-12">
-                <canvas id="prices"></canvas>
-            </div>
-            <div class="col-12">
+            <div class="col-lg-6">
                 <canvas id="monthlyAmountChart"></canvas>
             </div>
-            <div class="col-12">
+            <div class="col-lg-6">
                 <canvas id="profitChart"></canvas>
-            </div>
-            <div class="col-12">
-                <canvas id="cash"></canvas>
-            </div>
-            <div class="col-12">
-                <canvas id="profits"></canvas>
             </div>
         </div>
         <hr>
@@ -73,13 +64,10 @@
       let nbShares = 0;
       let originalShareValue = 0;
       let currentSharesValue = 0;
-      let highestSharesValue = 0;
 
       const labels = [];
-      const baseMonthlyInvests = [];
       const monthlyInvests = [];
       const profits = [];
-      const highestValues = [];
       const initialValues = [];
       const currentValues = [];
       const capitals = [];
@@ -92,7 +80,7 @@
         }
 
         if ((index + 1) % 12 === 0) {
-          monthlyInvestment *= 1.1;
+          monthlyInvestment *= 1.05;
         }
 
         currentSharesValue = nbShares * thisMonthPrice;
@@ -101,51 +89,7 @@
         initialValues.push(originalShareValue);
         currentValues.push(currentSharesValue);
 
-        let amountToBuyThisMonth = monthlyInvestment;
-
-        if (currentSharesValue > originalShareValue) {
-          const diffPercent = currentSharesValue/originalShareValue - 1;
-          let divider = 5;
-
-          if (diffPercent >= 1) {
-            divider = 1;
-          } else if (divider >= 0.8) {
-            divider = 1.5;
-          } else if (divider >= 0.6) {
-            divider = 2;
-          } else if (divider >= 0.5) {
-            divider = 2.5;
-          } else if (divider >= 0.4) {
-            divider = 3;
-          } else if (divider >= 0.3) {
-            divider = 3.5;
-          } else if (divider >= 0.2) {
-            divider = 4;
-          }
-
-          amountToBuyThisMonth = (originalShareValue - currentSharesValue) / divider + monthlyInvestment;
-        }
-
-        if (currentSharesValue < originalShareValue) {
-          const diffPercent = originalShareValue/currentSharesValue - 1;
-          let multiplier = 2;
-
-          if (diffPercent >= 0.60) {
-            multiplier = 8;
-          } else if (diffPercent >= 0.50) {
-            multiplier = 7;
-          } else if (diffPercent >= 0.40) {
-            multiplier = 6;
-          } else if (diffPercent >= 0.30) {
-            multiplier = 5;
-          } else if (diffPercent >= 0.20) {
-            multiplier = 4;
-          } else if (diffPercent >= 0.10) {
-            multiplier = 3;
-          }
-
-          amountToBuyThisMonth = monthlyInvestment + diffPercent * monthlyInvestment * multiplier;
-        }
+        const amountToBuyThisMonth = findAmountToBuy(currentSharesValue, originalShareValue, monthlyInvestment);
 
         if (amountToBuyThisMonth > 0) {
           originalShareValue += amountToBuyThisMonth;
@@ -163,11 +107,7 @@
         labels.push(date + ' - ' + thisMonthPrice);
         monthlyInvests.push(amountToBuyThisMonth);
 
-        highestSharesValue = Math.max(highestSharesValue, currentSharesValue);
-        highestValues.push(highestSharesValue);
-
         capitals.push(capital);
-        baseMonthlyInvests.push(monthlyInvestment);
         cash.push(availableCash);
         prices.push(thisMonthPrice);
       });
@@ -213,31 +153,42 @@
           labels: labels,
           datasets: [
             {
-              label: 'monthlyInvestment',
-              data: monthlyInvests,
-              borderWidth: 1
+              label: 'prices',
+              data: prices,
+              borderWidth: 1,
+              yAxisID: 'y',
             },
             {
-              label: 'baseMonthlyInvests',
-              data: baseMonthlyInvests,
-              borderWidth: 1
+              label: 'monthlyInvestment',
+              data: monthlyInvests,
+              borderWidth: 1,
+              yAxisID: 'y1',
             },
           ]
         },
-      });
-
-
-      new Chart(document.getElementById('prices'), {
-        type: 'line',
-        data: {
-          labels: labels,
-          datasets: [
-            {
-              label: 'prices',
-              data: prices,
-              borderWidth: 1
+        options: {
+          responsive: true,
+          interaction: {
+            mode: 'index',
+            intersect: false,
+          },
+          stacked: false,
+          scales: {
+            y: {
+              type: 'linear',
+              position: 'left',
             },
-          ]
+            y1: {
+              type: 'linear',
+              position: 'right',
+
+              // grid line settings
+              grid: {
+                display: false,
+                drawOnChartArea: false, // only want the grid lines for one axis to show up
+              },
+            },
+          }
         },
       });
     });
@@ -246,6 +197,56 @@
 
   function format(number) {
     return formatter.format(number);
+  }
+
+  function findAmountToBuy(currentSharesValue, originalShareValue, monthlyInvestment) {
+    let amountToBuyThisMonth = monthlyInvestment;
+
+    if (currentSharesValue > originalShareValue) {
+      const diffPercent = currentSharesValue/originalShareValue - 1;
+      let divider = 5;
+
+      if (diffPercent >= 1) {
+        divider = 1;
+      } else if (divider >= 0.8) {
+        divider = 1.5;
+      } else if (divider >= 0.6) {
+        divider = 2;
+      } else if (divider >= 0.5) {
+        divider = 2.5;
+      } else if (divider >= 0.4) {
+        divider = 3;
+      } else if (divider >= 0.3) {
+        divider = 3.5;
+      } else if (divider >= 0.2) {
+        divider = 4;
+      }
+
+      amountToBuyThisMonth = (originalShareValue - currentSharesValue) / divider + monthlyInvestment;
+    }
+
+    if (currentSharesValue < originalShareValue) {
+      const diffPercent = originalShareValue/currentSharesValue - 1;
+      let multiplier = 2;
+
+      if (diffPercent >= 0.60) {
+        multiplier = 8;
+      } else if (diffPercent >= 0.50) {
+        multiplier = 7;
+      } else if (diffPercent >= 0.40) {
+        multiplier = 6;
+      } else if (diffPercent >= 0.30) {
+        multiplier = 5;
+      } else if (diffPercent >= 0.20) {
+        multiplier = 4;
+      } else if (diffPercent >= 0.10) {
+        multiplier = 3;
+      }
+
+      amountToBuyThisMonth = monthlyInvestment + diffPercent * monthlyInvestment * multiplier;
+    }
+
+    return amountToBuyThisMonth;
   }
 </script>
 </body>
